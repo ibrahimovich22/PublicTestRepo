@@ -3,3 +3,7 @@ public class LearnGerman {
   let level: String
   let student: String
 }
+
+
+public class Test {
+}
