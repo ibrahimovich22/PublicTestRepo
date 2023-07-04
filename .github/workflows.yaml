@@ -1,0 +1,60 @@
+---
+# Access the 'Fro Bot' GitHub App
+name: Fro Bot (GitHub App)
+
+'on':
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/github-app.yaml'
+  workflow_call:
+    outputs:
+      access-token:
+        description: The Installation Access Token
+        value: ${{ jobs.get-app.outputs.access-token }}
+      app:
+        description: The GitHub App
+        value: ${{ jobs.get-app.outputs.app }}
+    secrets:
+      APPLICATION_ID:
+        description: GitHub App ID
+        required: true
+      APPLICATION_PRIVATE_KEY:
+        description: GitHub App private key
+        required: true
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  get-app:
+    name: Get App
+    outputs:
+      access-token: ${{ steps.get-workflow-app-token.outputs.token }}
+      app: ${{ steps.get-app.outputs.app }}
+    runs-on: ubuntu-latest
+    steps:
+      - id: get-workflow-app-token
+        name: Get Token
+        uses: peter-murray/workflow-application-token-action@8e1ba3bf1619726336414f1014e37f17fbadf1db # v2.1.0
+        with:
+          application_id: ${{ secrets.APPLICATION_ID }}
+          application_private_key: ${{ secrets.APPLICATION_PRIVATE_KEY }}
+      - id: get-app
+        name: Get App
+        env:
+          APP_SLUG: 'fro-bot'
+          GH_TOKEN: ${{ steps.get-workflow-app-token.outputs.token }}
+        run: |
+          # Retrieve the GitHub App
+          gh api /apps/${{ env.APP_SLUG }} \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            | tr -d '\n' > app.json
+          echo "app=$(cat app.json)" >> $GITHUB_OUTPUT
+      - if: github.event_name != 'workflow_call'
+        name: Display App
+        env:
+          APP: ${{ steps.get-app.outputs.app }}
+        run: jq -C . app.json
